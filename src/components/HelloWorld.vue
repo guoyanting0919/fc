@@ -1,59 +1,156 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-router" target="_blank" rel="noopener">router</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-vuex" target="_blank" rel="noopener">vuex</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div>
+    <div class="authentification">
+      <h2>VueJS + Google Calendar Example</h2>Authentification
+      <button v-if="!authorized" @click="handleAuthClick">Sign In</button>
+      <button v-if="authorized" @click="handleSignoutClick">Sign Out</button>
+    </div>
+    <hr />
+    <button v-if="authorized" @click="getData">Get Data</button>
+    <div class="item-container" v-if="authorized && items">
+      <pre v-html="items"></pre>
+    </div>
   </div>
 </template>
 
+<script src="https://apis.google.com/js/api.js"></script>
 <script>
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
+  data() {
+    return {
+      items: undefined,
+      api: undefined,
+      authorized: false
+    };
+  },
+
+  created() {},
+  async mounted() {
+    await console.log(gapi);
+    this.api = gapi;
+    // this.handleClientLoad();
+  },
+  methods: {
+    handleClientLoad() {
+      this.api.load("client:auth2", this.initClient);
+    },
+    initClient() {
+      let vm = this;
+      vm.api.client
+        .init({
+          apiKey: "AIzaSyByY5wMUZ35A9lpgZqlLVJNSC3OFauCOEU",
+          clientId:
+            "1029849860188-2p6ecjh0egiiukqcn6cvesanckp4iqg0.apps.googleusercontent.com",
+          discoveryDocs:
+            "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
+          scope: "https://www.googleapis.com/auth/calendar.readonly"
+        })
+        .then(_ => {
+          // Listen for sign-in state changes.
+          vm.api.auth2.getAuthInstance().isSignedIn.listen(vm.authorized);
+        });
+    },
+    handleAuthClick(event) {
+      Promise.resolve(this.api.auth2.getAuthInstance().signIn()).then(_ => {
+        this.authorized = true;
+        console.log(gapi);
+      });
+    },
+    handleSignoutClick(event) {
+      Promise.resolve(this.api.auth2.getAuthInstance().signOut()).then(_ => {
+        this.authorized = false;
+      });
+    },
+    getData() {
+      let vm = this;
+
+      vm.api.client.calendar.events
+        .list({
+          calendarId: "primary",
+          timeMin: new Date().toISOString(),
+          showDeleted: false,
+          singleEvents: true,
+          maxResults: 10,
+          orderBy: "startTime"
+        })
+        .then(response => {
+          vm.items = this.syntaxHighlight(response.result.items);
+          console.log(vm.items);
+        });
+    },
+    syntaxHighlight(json) {
+      if (typeof json != "string") {
+        json = JSON.stringify(json, undefined, 2);
+      }
+      json = json
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return json.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        match => {
+          var cls = "number";
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+              cls = "key";
+            } else {
+              cls = "string";
+            }
+          } else if (/true|false/.test(match)) {
+            cls = "boolean";
+          } else if (/null/.test(match)) {
+            cls = "null";
+          }
+          return '<span class="' + cls + '">' + match + "</span>";
+        }
+      );
+    }
   }
-}
+};
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped lang="scss">
-h3 {
-  margin: 40px 0 0;
+<style>
+body {
+  font-family: "Open Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1em;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
+
+.authentification {
+  margin: 20px;
+  text-align: center;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
+
+hr {
+  border: 1px solid black;
+  margin: 30px;
 }
-a {
-  color: #42b983;
+
+pre {
+  outline: 1px solid #ccc;
+  padding: 5px;
+  margin: 5px;
+  overflow-x: auto;
+}
+
+.string {
+  color: green;
+}
+
+.number {
+  color: purple;
+}
+
+.boolean {
+  color: blue;
+}
+
+.null {
+  color: magenta;
+}
+
+.key {
+  color: black;
 }
 </style>
