@@ -28,7 +28,7 @@ export default {
   async mounted() {
     await console.log(gapi);
     this.api = gapi;
-    // this.handleClientLoad();
+    this.handleClientLoad();
   },
   methods: {
     handleClientLoad() {
